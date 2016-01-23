@@ -1,0 +1,99 @@
+#!/usr/bin/bash
+# very basic version control system
+
+# let's check current directory
+PWD=$(pwd)
+
+# check flags and do stuff
+if [ "$1" = "init" ] ; then
+  # initialize repository
+  mkdir $PWD/stable
+  mkdir $PWD/test
+  mkdir $PWD/archive
+  touch $PWD/zzzrepo
+  #hash diff 2>/dev/null || { echo >&2 "Warning: can't find diff application." }
+  #hash tar 2>/dev/null || { echo >&2 "Warning: can't find tar application." }
+  #hash md5sum 2>/dev/null || { echo >&2 "Warning: can't find md5sum application." }
+  echo "$(date): repository initialized" | tee -a $PWD/zzzrepo
+  
+elif [ "$1" = "diff" ] ; then
+  if [ -z $2 ] ; then
+    # diff test and stable directories
+    diff -d -r $PWD/test/ $PWD/stable/
+  else
+    # diff test and stable directories with the content of specified archive
+    mkdir $PWD/archive/difftemp
+    tar -zxvf $PWD/$2 -C $PWD/archive/difftemp
+    echo "------ Test ------"
+    diff -d -r $PWD/test $PWD/archive/difftemp/test
+    echo " "
+    echo " ----- Stable ------"
+    diff -d -r $PWD/stable $PWD/archive/difftemp/stable
+    rm -fr $PWD/archive/difftemp
+    echo " "
+  fi
+
+elif [ "$1" = "merge" ] ; then
+  # overwrite stable with test
+  rm -fr $PWD/stable/*
+ cp --recursive $PWD/test/* $PWD/stable/
+  echo "$(date): merged test into stable" | tee -a $PWD/zzzrepo
+
+elif [ "$1" = "save" ] ; then
+  # save test and stable as an archive under a name of date and time
+  # also make md5 hashes
+  timestamp=$(date +%F_%T)
+  echo "Making md5 hashes of files in test..."
+  find $PWD/test -type f -print0 | xargs -0 md5sum > $PWD/test/zzztest.md5
+  echo "Making md5 hashes of files in stable..."
+  find $PWD/stable -type f -print0 | xargs -0 md5sum > $PWD/stable/zzzstable.md5
+  tar -zcf $PWD/archive/$timestamp.tar.gz test/ stable/
+  echo "$(date): repository archived" | tee -a $PWD/zzzrepo
+  
+elif [ "$1" = "load" ] ; then
+  if [ -z $3 ] ; then
+    # overwrite test and stable with content of the specified archive
+    rm -fr $PWD/test
+    rm -fr $PWD/stable
+    tar -zxf $2 -C $PWD
+    echo "$(date): restored backup from $2 archive" | tee -a $PWD/zzzrepo
+  elif [ "$3" = "test" ] ; then
+    # overwite just test with content of specified archive
+    rm -fr $PWD/test 
+    tar -k -zxf $2 -C $PWD &> /dev/null
+    echo "$(date): restored test repo backup from $2 archive" | tee -a $PWD/zzzrepo
+  elif [ "$3" = "stable" ] ; then
+    # overwrite just stable with content of specified archive
+    rm -fr $PWD/stable
+    tar -k -zxf $2 -C $PWD &> /dev/null
+    echo "$(date): restored stable repo backup from $2 archive" | tee -a $PWD/zzzrepo
+  fi
+
+if [ "$1" = "md5" ] ; then
+  # create md5 of each file in test and stable
+  find $PWD/test/ -type f -print0 | xargs -0 md5sum > $PWD/test/zzztest.md5
+  find $PWD/stable/ -f type -f -print0 | xargs -0 md5dum > $PWD/stable/zzzstable.md5
+  echo "$(date): sums written into test/zzztest.md5 and stable/zzzstable.md5 files." | tee -a $PWD/zzzrepo
+fi
+
+elif [ -z $1 ] ; then
+  # echo some instructions
+  echo " "
+  echo -e "Please specify:\r
+   zzzver init - to create new repository,\r
+   zzzver diff - to compare test and stable repo,\r
+   zzzver diff archive/name.tar.gz - to compare test and stable with specified archive,\r
+   zzzver merge - to copy test into stable,\r
+   zzzver save - to archive test and stable as date_time.tar.gz,\r
+   zzzver load archive/name.tar.gz - to replace test and stable with content of specified archive,\r
+   zzzver load archive/name.tar.gz test - to replace test with content of specified archive,\r
+   zzzver load archive/name.tar.gz stable - to replace stable with content of specified archive.\r
+   zzzver md5 - to make md5 hashes of files from testing and stable."
+   echo " "
+
+else
+  echo "I give up, you wrote something wrong. :("
+  echo "Run zzzver without parameters to get some help."
+  echo " "
+fi
+
