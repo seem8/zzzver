@@ -1,7 +1,8 @@
 # zzzver
 Dumb version control script.
 For those who don't need it,
-but wants to have snapshot archives.
+but wants to have snapshot archives
+and checksums.
 
 Dependencies are: bash, diff, gzip and md5sum.
 
